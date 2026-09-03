@@ -4,8 +4,25 @@ let ensured = false;
 
 export async function ensureDb() {
   if (ensured) return;
+  const isPostgres = (process.env.DATABASE_URL || "").startsWith("postgres");
+  // For postgres, always ensure enum exists even if User table exists
+  if (isPostgres) {
+    try {
+      await prisma.$executeRawUnsafe(`
+        DO $$ BEGIN
+          CREATE TYPE "TransactionType" AS ENUM ('income', 'expense');
+        EXCEPTION WHEN duplicate_object THEN null;
+        END $$;
+      `);
+    } catch {}
+  }
   try {
     await prisma.$queryRaw`SELECT 1 FROM "User" LIMIT 1`;
+    // User exists, but for postgres ensure Category/Transaction have correct enum type
+    if (isPostgres) {
+      try { await prisma.$executeRawUnsafe(`ALTER TABLE "Category" ALTER COLUMN "type" TYPE "TransactionType" USING "type"::"TransactionType"`); } catch {}
+      try { await prisma.$executeRawUnsafe(`ALTER TABLE "Transaction" ALTER COLUMN "type" TYPE "TransactionType" USING "type"::"TransactionType"`); } catch {}
+    }
     ensured = true;
     return;
   } catch (e: unknown) {
@@ -14,17 +31,9 @@ export async function ensureDb() {
       console.error("ensureDb unknown error", e);
       return;
     }
-    const isPostgres = (process.env.DATABASE_URL || "").startsWith("postgres");
     console.log("DB tables missing, creating... isPostgres:", isPostgres);
     try {
       if (isPostgres) {
-        // ensure enum exists
-        await prisma.$executeRawUnsafe(`
-          DO $$ BEGIN
-            CREATE TYPE "TransactionType" AS ENUM ('income', 'expense');
-          EXCEPTION WHEN duplicate_object THEN null;
-          END $$;
-        `);
         await prisma.$executeRawUnsafe(`
           CREATE TABLE IF NOT EXISTS "User" (
             "id" TEXT NOT NULL PRIMARY KEY,
