@@ -36,31 +36,33 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-zinc-200 p-8">
-        <h1 className="text-2xl font-bold text-center mb-2">📝 สมัครสมาชิก</h1>
-        <p className="text-sm text-zinc-500 text-center mb-6">สร้างบัญชีเพื่อเริ่มใช้งาน</p>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-sm font-medium">ชื่อ (ไม่บังคับ)</label>
-            <input type="text" value={name} onChange={(e)=>setName(e.target.value)} className="w-full mt-1 border border-zinc-300 rounded-xl px-3 py-2.5" placeholder="สมชาย" />
-          </div>
-          <div>
-            <label className="text-sm font-medium">อีเมล</label>
-            <input type="email" value={email} onChange={(e)=>setEmail(e.target.value)} required className="w-full mt-1 border border-zinc-300 rounded-xl px-3 py-2.5" placeholder="you@example.com" />
-          </div>
-          <div>
-            <label className="text-sm font-medium">รหัสผ่าน (≥6 ตัว)</label>
-            <input type="password" value={password} onChange={(e)=>setPassword(e.target.value)} required className="w-full mt-1 border border-zinc-300 rounded-xl px-3 py-2.5" placeholder="••••••" />
-          </div>
-          {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
-          <button type="submit" disabled={loading} className="w-full py-3 rounded-xl font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50">
-            {loading ? "กำลังสมัคร..." : "สมัครสมาชิก"}
-          </button>
-        </form>
-        <p className="text-sm text-center mt-4 text-zinc-600">
-          มีบัญชีแล้ว? <Link href="/login" className="text-emerald-600 font-medium hover:underline">เข้าสู่ระบบ</Link>
-        </p>
+    <div className="min-vh-100 d-flex align-items-center justify-content-center bg-light px-3">
+      <div className="card shadow-sm border-0" style={{ maxWidth: 440, width: "100%" }}>
+        <div className="card-body p-4 p-md-5">
+          <h1 className="h4 fw-bold text-center mb-1">📝 สมัครสมาชิก</h1>
+          <p className="text-muted text-center small mb-4">สร้างบัญชีเพื่อเริ่มใช้งาน</p>
+          <form onSubmit={handleSubmit}>
+            <div className="mb-3">
+              <label className="form-label small fw-medium">ชื่อ (ไม่บังคับ)</label>
+              <input type="text" value={name} onChange={(e)=>setName(e.target.value)} className="form-control form-control-lg" placeholder="สมชาย" />
+            </div>
+            <div className="mb-3">
+              <label className="form-label small fw-medium">อีเมล</label>
+              <input type="email" value={email} onChange={(e)=>setEmail(e.target.value)} required className="form-control form-control-lg" placeholder="you@example.com" />
+            </div>
+            <div className="mb-3">
+              <label className="form-label small fw-medium">รหัสผ่าน (≥6 ตัว)</label>
+              <input type="password" value={password} onChange={(e)=>setPassword(e.target.value)} required className="form-control form-control-lg" placeholder="••••••" />
+            </div>
+            {error && <div className="alert alert-danger py-2 small">{error}</div>}
+            <button type="submit" disabled={loading} className="btn btn-success btn-lg w-100 fw-semibold">
+              {loading ? "กำลังสมัคร..." : "สมัครสมาชิก"}
+            </button>
+          </form>
+          <p className="text-center small mt-4 mb-0 text-muted">
+            มีบัญชีแล้ว? <Link href="/login" className="text-success fw-medium text-decoration-none">เข้าสู่ระบบ</Link>
+          </p>
+        </div>
       </div>
     </div>
   );

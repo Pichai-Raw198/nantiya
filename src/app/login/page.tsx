@@ -35,27 +35,29 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-zinc-200 p-8">
-        <h1 className="text-2xl font-bold text-center mb-2">🔐 เข้าสู่ระบบ</h1>
-        <p className="text-sm text-zinc-500 text-center mb-6">เว็บรายรับรายจ่าย</p>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-sm font-medium">อีเมล</label>
-            <input type="email" value={email} onChange={(e)=>setEmail(e.target.value)} required className="w-full mt-1 border border-zinc-300 rounded-xl px-3 py-2.5" placeholder="you@example.com" />
-          </div>
-          <div>
-            <label className="text-sm font-medium">รหัสผ่าน</label>
-            <input type="password" value={password} onChange={(e)=>setPassword(e.target.value)} required className="w-full mt-1 border border-zinc-300 rounded-xl px-3 py-2.5" placeholder="••••••" />
-          </div>
-          {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
-          <button type="submit" disabled={loading} className="w-full py-3 rounded-xl font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50">
-            {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
-          </button>
-        </form>
-        <p className="text-sm text-center mt-4 text-zinc-600">
-          ยังไม่มีบัญชี? <Link href="/register" className="text-emerald-600 font-medium hover:underline">สมัครสมาชิก</Link>
-        </p>
+    <div className="min-vh-100 d-flex align-items-center justify-content-center bg-light px-3">
+      <div className="card shadow-sm border-0" style={{ maxWidth: 440, width: "100%" }}>
+        <div className="card-body p-4 p-md-5">
+          <h1 className="h4 fw-bold text-center mb-1">🔐 เข้าสู่ระบบ</h1>
+          <p className="text-muted text-center small mb-4">เว็บรายรับรายจ่าย</p>
+          <form onSubmit={handleSubmit}>
+            <div className="mb-3">
+              <label className="form-label small fw-medium">อีเมล</label>
+              <input type="email" value={email} onChange={(e)=>setEmail(e.target.value)} required className="form-control form-control-lg" placeholder="you@example.com" />
+            </div>
+            <div className="mb-3">
+              <label className="form-label small fw-medium">รหัสผ่าน</label>
+              <input type="password" value={password} onChange={(e)=>setPassword(e.target.value)} required className="form-control form-control-lg" placeholder="••••••" />
+            </div>
+            {error && <div className="alert alert-danger py-2 small">{error}</div>}
+            <button type="submit" disabled={loading} className="btn btn-success btn-lg w-100 fw-semibold">
+              {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
+            </button>
+          </form>
+          <p className="text-center small mt-4 mb-0 text-muted">
+            ยังไม่มีบัญชี? <Link href="/register" className="text-success fw-medium text-decoration-none">สมัครสมาชิก</Link>
+          </p>
+        </div>
       </div>
     </div>
   );

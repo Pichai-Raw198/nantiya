@@ -94,7 +94,6 @@ export default function Home() {
     if (!authLoading) fetchData();
   }, [month, filterType]);
   useEffect(() => {
-    // update category default when type changes
     const cat = categories.find((c) => c.type === type);
     if (cat) setCategoryName(cat.name);
   }, [type, categories]);
@@ -111,7 +110,6 @@ export default function Home() {
 
     const ctx = chartRef.current.getContext("2d");
     if (!ctx) return;
-    // map colors from categories
     const colors = labels.map((l) => categories.find((c) => c.name === l)?.color || "#6366f1");
 
     chartInstance.current = new Chart(ctx, {
@@ -136,7 +134,6 @@ export default function Home() {
     if (isNaN(Number(cleanAmount)) || Number(cleanAmount) <= 0) return alert("จำนวนเงินไม่ถูกต้อง");
     if (categories.length===0) return alert("กำลังโหลดหมวดหมู่ กรุณารอสักครู่แล้วลองใหม่");
 
-    // ensure categoryName belongs to selected type, fallback to first of type
     let finalCategory = categoryName;
     const exists = categories.some(c=>c.name===finalCategory && c.type===type);
     if (!exists) {
@@ -200,123 +197,141 @@ export default function Home() {
   const filteredCats = categories.filter((c)=> c.type===type);
 
   if (authLoading) {
-    return <div className="min-h-screen flex items-center justify-center bg-[#f8fafc]"><p className="text-zinc-500">กำลังตรวจสอบสิทธิ์...</p></div>;
+    return <div className="min-vh-100 d-flex align-items-center justify-content-center bg-light"><div className="spinner-border text-primary me-2" role="status"></div><span className="text-muted">กำลังตรวจสอบสิทธิ์...</span></div>;
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-zinc-900">
-      {/* Header */}
-      <header className="sticky top-0 z-10 bg-white border-b border-zinc-200 shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex flex-wrap gap-3 items-center justify-between">
-          <h1 className="text-2xl font-bold flex items-center gap-2">💰 รายรับรายจ่าย</h1>
-          <div className="flex gap-2 items-center">
-            <input type="month" value={month} onChange={(e)=>setMonth(e.target.value)} className="border border-zinc-300 rounded-lg px-3 py-2 text-sm bg-white" />
-            <select value={filterType} onChange={(e)=>setFilterType(e.target.value as never)} className="border border-zinc-300 rounded-lg px-3 py-2 text-sm bg-white">
+    <div className="min-vh-100 bg-light">
+      {/* Header - Bootstrap Navbar */}
+      <nav className="navbar navbar-expand-lg bg-white border-bottom shadow-sm sticky-top">
+        <div className="container">
+          <span className="navbar-brand fw-bold fs-4">💰 รายรับรายจ่าย</span>
+          <div className="d-flex align-items-center gap-2 flex-wrap ms-auto">
+            <input type="month" value={month} onChange={(e)=>setMonth(e.target.value)} className="form-control form-control-sm" style={{width: 160}} />
+            <select value={filterType} onChange={(e)=>setFilterType(e.target.value as never)} className="form-select form-select-sm" style={{width: 140}}>
               <option value="all">ทั้งหมด</option>
               <option value="income">รายรับ</option>
               <option value="expense">รายจ่าย</option>
             </select>
-            <span className="text-sm text-zinc-600 hidden sm:inline">{user?.name || user?.email}</span>
-            <button onClick={handleLogout} className="text-sm px-3 py-2 rounded-lg bg-zinc-100 hover:bg-zinc-200 border">ออก</button>
+            <span className="small text-muted d-none d-sm-inline">{user?.name || user?.email}</span>
+            <button onClick={handleLogout} className="btn btn-outline-secondary btn-sm">ออก</button>
           </div>
         </div>
-      </header>
+      </nav>
 
-      <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-zinc-100">
-            <p className="text-sm text-zinc-500">รายรับเดือนนี้</p>
-            <p className="text-2xl font-bold text-emerald-600">฿ {fmt(summary.income)}</p>
+      <div className="container py-4">
+        {/* Summary Cards - Bootstrap Row */}
+        <div className="row g-3 mb-4">
+          <div className="col-md-4">
+            <div className="card border-0 shadow-sm h-100">
+              <div className="card-body">
+                <div className="text-muted small">รายรับเดือนนี้</div>
+                <div className="fs-4 fw-bold text-success">฿ {fmt(summary.income)}</div>
+              </div>
+            </div>
           </div>
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-zinc-100">
-            <p className="text-sm text-zinc-500">รายจ่ายเดือนนี้</p>
-            <p className="text-2xl font-bold text-red-500">฿ {fmt(summary.expense)}</p>
+          <div className="col-md-4">
+            <div className="card border-0 shadow-sm h-100">
+              <div className="card-body">
+                <div className="text-muted small">รายจ่ายเดือนนี้</div>
+                <div className="fs-4 fw-bold text-danger">฿ {fmt(summary.expense)}</div>
+              </div>
+            </div>
           </div>
-          <div className={`rounded-2xl p-5 shadow-sm border ${summary.balance >=0 ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}>
-            <p className="text-sm text-zinc-500">คงเหลือ</p>
-            <p className={`text-2xl font-bold ${summary.balance>=0? "text-emerald-700":"text-red-600"}`}>฿ {fmt(summary.balance)}</p>
-            <p className="text-xs text-zinc-500 mt-1">{summary.balance>=0 ? "ออมได้ดี 👍" : "ใช้จ่ายเกินรายรับ ⚠️"}</p>
+          <div className="col-md-4">
+            <div className={`card shadow-sm h-100 ${summary.balance >=0 ? "bg-success bg-opacity-10 border-success" : "bg-danger bg-opacity-10 border-danger"}`}>
+              <div className="card-body">
+                <div className="text-muted small">คงเหลือ</div>
+                <div className={`fs-4 fw-bold ${summary.balance>=0? "text-success":"text-danger"}`}>฿ {fmt(summary.balance)}</div>
+                <div className="small text-muted">{summary.balance>=0 ? "ออมได้ดี 👍" : "ใช้จ่ายเกินรายรับ ⚠️"}</div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="row g-4">
           {/* Form */}
-          <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-zinc-100 h-fit">
-            <h2 className="font-semibold text-lg mb-4">{editingId ? "✏️ แก้ไขรายการ" : "➕ เพิ่มรายการใหม่"}</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="flex gap-2">
-                <button type="button" onClick={()=>setType("expense")} className={`flex-1 py-2.5 rounded-xl font-medium border ${type==="expense"?"bg-red-500 text-white border-red-500":"bg-white border-zinc-300"}`}>รายจ่าย</button>
-                <button type="button" onClick={()=>setType("income")} className={`flex-1 py-2.5 rounded-xl font-medium border ${type==="income"?"bg-emerald-500 text-white border-emerald-500":"bg-white border-zinc-300"}`}>รายรับ</button>
-              </div>
+          <div className="col-lg-4">
+            <div className="card shadow-sm border-0">
+              <div className="card-body">
+                <h5 className="card-title fw-semibold">{editingId ? "✏️ แก้ไขรายการ" : "➕ เพิ่มรายการใหม่"}</h5>
+                <form onSubmit={handleSubmit}>
+                  <div className="btn-group w-100 mb-3" role="group">
+                    <button type="button" onClick={()=>setType("expense")} className={`btn ${type==="expense"?"btn-danger":"btn-outline-danger"}`}>รายจ่าย</button>
+                    <button type="button" onClick={()=>setType("income")} className={`btn ${type==="income"?"btn-success":"btn-outline-success"}`}>รายรับ</button>
+                  </div>
 
-              <div>
-                <label className="text-sm font-medium">จำนวนเงิน (บาท)</label>
-                <input type="number" step="0.01" value={amount} onChange={(e)=>setAmount(e.target.value)} placeholder="0.00" className="w-full mt-1 border border-zinc-300 rounded-xl px-3 py-2.5 text-lg" required />
-              </div>
+                  <div className="mb-3">
+                    <label className="form-label small fw-medium">จำนวนเงิน (บาท)</label>
+                    <input type="number" step="0.01" value={amount} onChange={(e)=>setAmount(e.target.value)} placeholder="0.00" className="form-control form-control-lg" required />
+                  </div>
 
-              <div>
-                <label className="text-sm font-medium">หมวดหมู่</label>
-                <select value={categoryName} onChange={(e)=>setCategoryName(e.target.value)} className="w-full mt-1 border border-zinc-300 rounded-xl px-3 py-2.5 bg-white">
-                  {filteredCats.map((c)=>(<option key={c.id} value={c.name}>{c.icon} {c.name}</option>))}
-                </select>
-              </div>
+                  <div className="mb-3">
+                    <label className="form-label small fw-medium">หมวดหมู่</label>
+                    <select value={categoryName} onChange={(e)=>setCategoryName(e.target.value)} className="form-select">
+                      {filteredCats.map((c)=>(<option key={c.id} value={c.name}>{c.icon} {c.name}</option>))}
+                    </select>
+                  </div>
 
-              <div>
-                <label className="text-sm font-medium">วันที่</label>
-                <input type="date" value={date} onChange={(e)=>setDate(e.target.value)} className="w-full mt-1 border border-zinc-300 rounded-xl px-3 py-2.5" required />
-              </div>
+                  <div className="mb-3">
+                    <label className="form-label small fw-medium">วันที่</label>
+                    <input type="date" value={date} onChange={(e)=>setDate(e.target.value)} className="form-control" required />
+                  </div>
 
-              <div>
-                <label className="text-sm font-medium">หมายเหตุ</label>
-                <input type="text" value={note} onChange={(e)=>setNote(e.target.value)} placeholder="เช่น ค่ากาแฟ, เงินเดือน" className="w-full mt-1 border border-zinc-300 rounded-xl px-3 py-2.5" />
-              </div>
+                  <div className="mb-3">
+                    <label className="form-label small fw-medium">หมายเหตุ</label>
+                    <input type="text" value={note} onChange={(e)=>setNote(e.target.value)} placeholder="เช่น ค่ากาแฟ, เงินเดือน" className="form-control" />
+                  </div>
 
-              <button type="submit" disabled={submitting || categories.length===0} className={`w-full py-3 rounded-xl font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed ${type==="income"?"bg-emerald-600 hover:bg-emerald-700":"bg-red-500 hover:bg-red-600"} transition`}>
-                {submitting ? "กำลังบันทึก..." : editingId ? "บันทึกการแก้ไข" : "บันทึกรายการ"}
-              </button>
-              {categories.length===0 && <p className="text-xs text-amber-600 text-center">กำลังโหลดหมวดหมู่...</p>}
-              {editingId && <button type="button" onClick={()=>{setEditingId(null); setAmount(""); setNote("");}} className="w-full py-2.5 rounded-xl border border-zinc-300 bg-white">ยกเลิก</button>}
-            </form>
+                  <button type="submit" disabled={submitting || categories.length===0} className={`btn w-100 btn-lg fw-semibold ${type==="income"?"btn-success":"btn-danger"}`}>
+                    {submitting ? "กำลังบันทึก..." : editingId ? "บันทึกการแก้ไข" : "บันทึกรายการ"}
+                  </button>
+                  {categories.length===0 && <div className="text-warning small text-center mt-2">กำลังโหลดหมวดหมู่...</div>}
+                  {editingId && <button type="button" onClick={()=>{setEditingId(null); setAmount(""); setNote("");}} className="btn btn-outline-secondary w-100 mt-2">ยกเลิก</button>}
+                </form>
+              </div>
+            </div>
           </div>
 
           {/* Chart + List */}
-          <div className="lg:col-span-3 space-y-6">
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-zinc-100">
-              <h3 className="font-semibold mb-3">สัดส่วนรายจ่ายตามหมวดหมู่</h3>
-              {Object.keys(byCategory).length===0 ? (
-                <p className="text-sm text-zinc-500 text-center py-8">ยังไม่มีข้อมูลรายจ่ายเดือนนี้</p>
-              ) : (
-                <div className="max-w-[360px] mx-auto">
-                  <canvas ref={chartRef} />
-                </div>
-              )}
+          <div className="col-lg-8">
+            <div className="card shadow-sm border-0 mb-4">
+              <div className="card-body">
+                <h6 className="card-title fw-semibold">สัดส่วนรายจ่ายตามหมวดหมู่</h6>
+                {Object.keys(byCategory).length===0 ? (
+                  <p className="text-muted small text-center py-4">ยังไม่มีข้อมูลรายจ่ายเดือนนี้</p>
+                ) : (
+                  <div style={{maxWidth: 360}} className="mx-auto">
+                    <canvas ref={chartRef} />
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 overflow-hidden">
-              <div className="p-4 flex justify-between items-center">
-                <h3 className="font-semibold">ประวัติรายการ ({transactions.length})</h3>
-                <span className="text-xs text-zinc-500">{loading ? "กำลังโหลด..." : `เดือน ${month}`}</span>
+            <div className="card shadow-sm border-0">
+              <div className="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 className="mb-0 fw-semibold">ประวัติรายการ ({transactions.length})</h6>
+                <span className="small text-muted">{loading ? "กำลังโหลด..." : `เดือน ${month}`}</span>
               </div>
-              <div className="divide-y divide-zinc-100 max-h-[520px] overflow-auto">
+              <div className="list-group list-group-flush" style={{maxHeight: 520, overflowY: "auto"}}>
                 {transactions.length===0 ? (
-                  <p className="text-center text-sm text-zinc-500 py-10">ยังไม่มีรายการ</p>
+                  <div className="text-center text-muted small py-5">ยังไม่มีรายการ</div>
                 ) : transactions.map((tx)=>{
                   const cat = categories.find(c=>c.name===tx.categoryName);
                   return (
-                    <div key={tx.id} className="flex items-center gap-3 px-4 py-3 hover:bg-zinc-50">
-                      <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0" style={{background: cat?.color + "20", border: `1px solid ${cat?.color}`}}>
-                        {cat?.icon || (tx.type==="income"?"💵":"💸")}
+                    <div key={tx.id} className="list-group-item d-flex align-items-center gap-3">
+                      <div className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style={{width: 40, height: 40, background: (cat?.color || "#6366f1")+"20", border: `1px solid ${cat?.color || "#6366f1"}`}}>
+                        <span>{cat?.icon || (tx.type==="income"?"💵":"💸")}</span>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{tx.categoryName} <span className="font-normal text-zinc-500">• {new Date(tx.date).toLocaleDateString("th-TH")}</span></p>
-                        <p className="text-xs text-zinc-500 truncate">{tx.note || "-"}</p>
+                      <div className="flex-grow-1 text-truncate">
+                        <div className="fw-medium small text-truncate">{tx.categoryName} <span className="fw-normal text-muted">• {new Date(tx.date).toLocaleDateString("th-TH")}</span></div>
+                        <div className="small text-muted text-truncate">{tx.note || "-"}</div>
                       </div>
-                      <div className="text-right">
-                        <p className={`font-bold ${tx.type==="income"?"text-emerald-600":"text-red-600"}`}>{tx.type==="income"?"+":"-"}฿ {fmt(tx.amount)}</p>
-                        <div className="flex gap-1 justify-end mt-1">
-                          <button onClick={()=>handleEdit(tx)} className="text-xs px-2 py-1 rounded bg-zinc-100 hover:bg-zinc-200">แก้ไข</button>
-                          <button onClick={()=>handleDelete(tx.id)} className="text-xs px-2 py-1 rounded bg-red-50 text-red-600 hover:bg-red-100">ลบ</button>
+                      <div className="text-end">
+                        <div className={`fw-bold ${tx.type==="income"?"text-success":"text-danger"}`}>{tx.type==="income"?"+":"-"}฿ {fmt(tx.amount)}</div>
+                        <div className="btn-group btn-group-sm mt-1">
+                          <button onClick={()=>handleEdit(tx)} className="btn btn-light btn-sm">แก้ไข</button>
+                          <button onClick={()=>handleDelete(tx.id)} className="btn btn-outline-danger btn-sm">ลบ</button>
                         </div>
                       </div>
                     </div>
@@ -328,15 +343,15 @@ export default function Home() {
         </div>
 
         {/* Footer help */}
-        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-sm text-blue-900">
-          <p className="font-semibold">💡 วิธีใช้งาน</p>
-          <ul className="list-disc ml-5 mt-1 space-y-1">
+        <div className="alert alert-primary mt-4" role="alert">
+          <h6 className="alert-heading fw-semibold">💡 วิธีใช้งาน</h6>
+          <ul className="mb-0 small">
             <li>เลือกเดือนที่มุมขวาบนเพื่อดูสรุปย้อนหลัง</li>
             <li>กราฟจะสรุปเฉพาะรายจ่ายเพื่อให้เห็นว่าใช้เงินไปกับอะไรเยอะสุด</li>
-            <li>ข้อมูลเก็บใน SQLite (ไฟล์ <code>prisma/dev.db</code>) พร้อม Deploy ขึ้น Vercel/Supabase ได้</li>
+            <li>ข้อมูลแยกตามผู้ใช้ (ใช้ Postgres บน Vercel)</li>
           </ul>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
