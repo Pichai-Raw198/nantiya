@@ -14,10 +14,17 @@ export async function ensureDb() {
       console.error("ensureDb unknown error", e);
       return;
     }
-    console.log("DB tables missing, creating...");
     const isPostgres = (process.env.DATABASE_URL || "").startsWith("postgres");
+    console.log("DB tables missing, creating... isPostgres:", isPostgres);
     try {
       if (isPostgres) {
+        // ensure enum exists
+        await prisma.$executeRawUnsafe(`
+          DO $$ BEGIN
+            CREATE TYPE "TransactionType" AS ENUM ('income', 'expense');
+          EXCEPTION WHEN duplicate_object THEN null;
+          END $$;
+        `);
         await prisma.$executeRawUnsafe(`
           CREATE TABLE IF NOT EXISTS "User" (
             "id" TEXT NOT NULL PRIMARY KEY,
@@ -32,7 +39,7 @@ export async function ensureDb() {
           CREATE TABLE IF NOT EXISTS "Category" (
             "id" TEXT NOT NULL PRIMARY KEY,
             "name" TEXT NOT NULL,
-            "type" TEXT NOT NULL,
+            "type" "TransactionType" NOT NULL,
             "color" TEXT NOT NULL DEFAULT '#6366f1',
             "icon" TEXT,
             "userId" TEXT,
@@ -40,11 +47,13 @@ export async function ensureDb() {
           );
         `);
         await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "Category_name_type_userId_key" ON "Category"("name", "type", "userId");`);
+        // try to fix existing tables that were created with TEXT instead of enum
+        try { await prisma.$executeRawUnsafe(`ALTER TABLE "Category" ALTER COLUMN "type" TYPE "TransactionType" USING "type"::"TransactionType"`); } catch {}
         await prisma.$executeRawUnsafe(`
           CREATE TABLE IF NOT EXISTS "Transaction" (
             "id" TEXT NOT NULL PRIMARY KEY,
             "amount" DOUBLE PRECISION NOT NULL,
-            "type" TEXT NOT NULL,
+            "type" "TransactionType" NOT NULL,
             "categoryId" TEXT,
             "categoryName" TEXT NOT NULL,
             "date" TIMESTAMP(3) NOT NULL,
@@ -56,6 +65,7 @@ export async function ensureDb() {
             CONSTRAINT "Transaction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
           );
         `);
+        try { await prisma.$executeRawUnsafe(`ALTER TABLE "Transaction" ALTER COLUMN "type" TYPE "TransactionType" USING "type"::"TransactionType"`); } catch {}
       } else {
         await prisma.$executeRawUnsafe(`
           CREATE TABLE IF NOT EXISTS "User" (
