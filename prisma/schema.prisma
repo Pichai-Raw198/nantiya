@@ -1,0 +1,55 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum TransactionType {
+  income
+  expense
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  name         String?
+  password     String?
+  transactions Transaction[]
+  categories   Category[]
+  createdAt    DateTime      @default(now())
+}
+
+model Category {
+  id           String        @id @default(cuid())
+  name         String
+  type         TransactionType
+  color        String        @default("#6366f1")
+  icon         String?
+  userId       String?
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@unique([name, type, userId])
+}
+
+model Transaction {
+  id           String          @id @default(cuid())
+  amount       Float
+  type         TransactionType
+  categoryId   String?
+  category     Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  categoryName String
+  date         DateTime
+  note         String?
+  userId       String?
+  user         User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
