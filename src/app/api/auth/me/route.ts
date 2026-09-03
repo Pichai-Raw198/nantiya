@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { ensureDb } from "@/lib/ensureDb";
 
 export async function GET(req: NextRequest) {
+  await ensureDb();
   const token = req.cookies.get("token")?.value;
   if (!token) return NextResponse.json({ user: null }, { status: 401 });
   const payload = verifyToken(token);

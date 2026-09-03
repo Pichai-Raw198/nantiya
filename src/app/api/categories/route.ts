@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_CATEGORIES } from "@/lib/categories";
+import { ensureDb } from "@/lib/ensureDb";
 
 export async function GET() {
+  await ensureDb();
   let categories = await prisma.category.findMany({ orderBy: { name: "asc" } });
   // seed if empty
   if (categories.length === 0) {

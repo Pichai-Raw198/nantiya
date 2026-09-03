@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
+import { ensureDb } from "@/lib/ensureDb";
 
 function getUserId(req: NextRequest): string | null {
   const token = req.cookies.get("token")?.value;
@@ -10,6 +11,7 @@ function getUserId(req: NextRequest): string | null {
 }
 
 export async function GET(req: NextRequest) {
+  await ensureDb();
   const userId = getUserId(req);
   if (!userId) return NextResponse.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
 
@@ -51,6 +53,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  await ensureDb();
   const userId = getUserId(req);
   if (!userId) return NextResponse.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
   try {

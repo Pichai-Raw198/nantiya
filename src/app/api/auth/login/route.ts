@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword, signToken } from "@/lib/auth";
+import { ensureDb } from "@/lib/ensureDb";
 
 export async function POST(req: NextRequest) {
   try {
+    await ensureDb();
     const { email, password } = await req.json();
     if (!email || !password) return NextResponse.json({ error: "กรอกอีเมลและรหัสผ่าน" }, { status: 400 });
 
@@ -18,6 +20,6 @@ export async function POST(req: NextRequest) {
     return res;
   } catch (e) {
     console.error("login error", e);
-    return NextResponse.json({ error: "เข้าสู่ระบบไม่สำเร็จ" }, { status: 500 });
+    return NextResponse.json({ error: "เข้าสู่ระบบไม่สำเร็จ", detail: String(e) }, { status: 500 });
   }
 }

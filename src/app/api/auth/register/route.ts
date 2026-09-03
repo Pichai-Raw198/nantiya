@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, signToken } from "@/lib/auth";
+import { ensureDb } from "@/lib/ensureDb";
 
 export async function POST(req: NextRequest) {
   try {
+    await ensureDb();
     const { email, password, name } = await req.json();
     if (!email || !password) return NextResponse.json({ error: "กรอกอีเมลและรหัสผ่าน" }, { status: 400 });
     if (password.length < 6) return NextResponse.json({ error: "รหัสผ่านต้อง >=6 ตัว" }, { status: 400 });
@@ -20,6 +22,6 @@ export async function POST(req: NextRequest) {
     return res;
   } catch (e) {
     console.error("register error", e);
-    return NextResponse.json({ error: "สมัครไม่สำเร็จ" }, { status: 500 });
+    return NextResponse.json({ error: "สมัครไม่สำเร็จ", detail: String(e) }, { status: 500 });
   }
 }
