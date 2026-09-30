@@ -22,6 +22,41 @@ export async function ensureDb() {
     if (isPostgres) {
       try { await prisma.$executeRawUnsafe(`ALTER TABLE "Category" ALTER COLUMN "type" TYPE "TransactionType" USING "type"::"TransactionType"`); } catch {}
       try { await prisma.$executeRawUnsafe(`ALTER TABLE "Transaction" ALTER COLUMN "type" TYPE "TransactionType" USING "type"::"TransactionType"`); } catch {}
+      // Bill table may not exist yet on old deployments — create it
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "Bill" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "title" TEXT NOT NULL,
+          "amount" DOUBLE PRECISION NOT NULL,
+          "month" TEXT NOT NULL,
+          "dueDay" INTEGER NOT NULL DEFAULT 1,
+          "isPaid" BOOLEAN NOT NULL DEFAULT false,
+          "paidAt" TIMESTAMP(3),
+          "note" TEXT,
+          "userId" TEXT,
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT "Bill_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+        );
+      `);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Bill_userId_month_idx" ON "Bill"("userId", "month");`);
+    } else {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "Bill" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "title" TEXT NOT NULL,
+          "amount" REAL NOT NULL,
+          "month" TEXT NOT NULL,
+          "dueDay" INTEGER NOT NULL DEFAULT 1,
+          "isPaid" INTEGER NOT NULL DEFAULT 0,
+          "paidAt" DATETIME,
+          "note" TEXT,
+          "userId" TEXT,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT "Bill_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+        );
+      `);
     }
     ensured = true;
     return;
@@ -75,6 +110,23 @@ export async function ensureDb() {
           );
         `);
         try { await prisma.$executeRawUnsafe(`ALTER TABLE "Transaction" ALTER COLUMN "type" TYPE "TransactionType" USING "type"::"TransactionType"`); } catch {}
+        await prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS "Bill" (
+            "id" TEXT NOT NULL PRIMARY KEY,
+            "title" TEXT NOT NULL,
+            "amount" DOUBLE PRECISION NOT NULL,
+            "month" TEXT NOT NULL,
+            "dueDay" INTEGER NOT NULL DEFAULT 1,
+            "isPaid" BOOLEAN NOT NULL DEFAULT false,
+            "paidAt" TIMESTAMP(3),
+            "note" TEXT,
+            "userId" TEXT,
+            "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT "Bill_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+          );
+        `);
+        await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Bill_userId_month_idx" ON "Bill"("userId", "month");`);
       } else {
         await prisma.$executeRawUnsafe(`
           CREATE TABLE IF NOT EXISTS "User" (
@@ -112,6 +164,22 @@ export async function ensureDb() {
             "updatedAt" DATETIME NOT NULL,
             CONSTRAINT "Transaction_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "Category" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
             CONSTRAINT "Transaction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+          );
+        `);
+        await prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS "Bill" (
+            "id" TEXT NOT NULL PRIMARY KEY,
+            "title" TEXT NOT NULL,
+            "amount" REAL NOT NULL,
+            "month" TEXT NOT NULL,
+            "dueDay" INTEGER NOT NULL DEFAULT 1,
+            "isPaid" INTEGER NOT NULL DEFAULT 0,
+            "paidAt" DATETIME,
+            "note" TEXT,
+            "userId" TEXT,
+            "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT "Bill_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
           );
         `);
       }

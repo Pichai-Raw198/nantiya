@@ -19,6 +19,19 @@ type Summary = { income: number; expense: number; balance: number };
 
 type Category = { id: string; name: string; type: string; color: string; icon?: string };
 
+type Bill = {
+  id: string;
+  title: string;
+  amount: number;
+  month: string;
+  dueDay: number;
+  isPaid: boolean;
+  paidAt?: string | null;
+  note?: string | null;
+};
+
+type BillSummary = { total: number; paidCount: number; unpaidCount: number; paidAmount: number; unpaidAmount: number };
+
 export default function Home() {
   const router = useRouter();
   const [user, setUser] = useState<{email:string; name?:string|null} | null>(null);
@@ -38,6 +51,15 @@ export default function Home() {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [note, setNote] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // monthly bills
+  const [bills, setBills] = useState<Bill[]>([]);
+  const [billSummary, setBillSummary] = useState<BillSummary>({ total: 0, paidCount: 0, unpaidCount: 0, paidAmount: 0, unpaidAmount: 0 });
+  const [billTitle, setBillTitle] = useState("");
+  const [billAmount, setBillAmount] = useState("");
+  const [billDueDay, setBillDueDay] = useState("1");
+  const [billNote, setBillNote] = useState("");
+  const [billLoading, setBillLoading] = useState(false);
 
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstance = useRef<Chart | null>(null);
@@ -73,6 +95,17 @@ export default function Home() {
     setLoading(false);
   };
 
+  const fetchBills = async (m?: string) => {
+    try {
+      const mm = m || month;
+      const res = await fetch(`/api/bills?month=${mm}`);
+      if (res.status === 401) { router.push("/login"); return; }
+      const data = await res.json();
+      setBills(data.bills || []);
+      setBillSummary(data.summary || { total: 0, paidCount: 0, unpaidCount: 0, paidAmount: 0, unpaidAmount: 0 });
+    } catch (e) { console.error("fetchBills fail", e); }
+  };
+
   // auth check
   useEffect(() => {
     const check = async () => {
@@ -86,12 +119,14 @@ export default function Home() {
       setAuthLoading(false);
       fetchCategories();
       fetchData();
+      fetchBills();
     };
     check();
   }, []);
 
   useEffect(() => {
-    if (!authLoading) fetchData();
+    if (!authLoading) { fetchData(); fetchBills(); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [month, filterType]);
   useEffect(() => {
     const cat = categories.find((c) => c.type === type);
@@ -193,6 +228,90 @@ export default function Home() {
     router.push("/login");
   };
 
+  const prevMonthStr = (mm: string) => {
+    const [y, m] = mm.split("-").map(Number);
+    const d = new Date(y, m - 2, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  };
+  const currentMonthStr = new Date().toISOString().slice(0, 7);
+  const isCurrentMonth = month === currentMonthStr;
+  const todayDay = new Date().getDate();
+  const overdueBills = bills.filter((b) => !b.isPaid && (!isCurrentMonth || b.dueDay < todayDay));
+  const dueSoonBills = bills.filter((b) => !b.isPaid && isCurrentMonth && b.dueDay >= todayDay && b.dueDay - todayDay <= 3);
+
+  const handleAddBill = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = billAmount.toString().replace(/,/g, "").trim();
+    if (!billTitle.trim() || !clean || !billDueDay) return alert("กรอกชื่อบิล ยอดเงิน และวันครบกำหนด");
+    if (isNaN(Number(clean)) || Number(clean) <= 0) return alert("จำนวนเงินไม่ถูกต้อง");
+    const d = Number(billDueDay);
+    if (isNaN(d) || d < 1 || d > 31) return alert("วันครบกำหนดต้อง 1-31");
+    setBillLoading(true);
+    try {
+      const res = await fetch("/api/bills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify({ title: billTitle.trim(), amount: Number(clean), month, dueDay: d, note: billNote }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) return alert(`เพิ่มบิลไม่สำเร็จ: ${result.error || res.statusText}`);
+      setBillTitle(""); setBillAmount(""); setBillDueDay("1"); setBillNote("");
+      await fetchBills();
+    } catch (err) {
+      alert("เชื่อมต่อไม่ได้: " + String(err));
+    } finally {
+      setBillLoading(false);
+    }
+  };
+
+  const handlePayBill = async (id: string) => {
+    if (!confirm("ยืนยันว่าจ่ายบิลนี้แล้ว? จะบันทึกเป็นรายจ่ายให้อัตโนมัติ")) return;
+    try {
+      const bill = bills.find((b) => b.id === id);
+      const expenseCat = categories.find((c) => c.type === "expense" && (c.name.includes("บิล") || c.name.includes("ผ่อน"))) || categories.find((c) => c.type === "expense");
+      const res = await fetch(`/api/bills/${id}/pay`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify({ categoryName: expenseCat?.name || "บิล/ผ่อน", categoryId: expenseCat?.id || null }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) return alert(`จ่ายบิลไม่สำเร็จ: ${result.error || res.statusText}`);
+      await fetchBills();
+      await fetchData();
+    } catch (err) {
+      alert("เชื่อมต่อไม่ได้: " + String(err));
+    }
+  };
+
+  const handleUnpayBill = async (id: string) => {
+    if (!confirm("ยกเลิกสถานะจ่ายแล้ว?")) return;
+    const res = await fetch(`/api/bills/${id}/pay`, { method: "DELETE" });
+    if (!res.ok) return alert("ยกเลิกไม่สำเร็จ");
+    fetchBills();
+  };
+
+  const handleDeleteBill = async (id: string) => {
+    if (!confirm("ลบบิลนี้?")) return;
+    await fetch(`/api/bills/${id}`, { method: "DELETE" });
+    fetchBills();
+  };
+
+  const handleCopyBills = async () => {
+    try {
+      const res = await fetch("/api/bills/copy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fromMonth: prevMonthStr(month), toMonth: month }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) return alert(result.error || "คัดลอกไม่สำเร็จ");
+      alert(`คัดลอก ${result.copied} บิลจากเดือนก่อนแล้ว`);
+      fetchBills();
+    } catch (err) {
+      alert("เชื่อมต่อไม่ได้: " + String(err));
+    }
+  };
+
   const fmt = (n:number) => n.toLocaleString("th-TH", { minimumFractionDigits: 2 });
   const filteredCats = categories.filter((c)=> c.type===type);
 
@@ -246,6 +365,98 @@ export default function Home() {
                 <div className="small text-muted">{summary.balance>=0 ? "ออมได้ดี 👍" : "ใช้จ่ายเกินรายรับ ⚠️"}</div>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Monthly bills alert — แจ้งเตือนทุกครั้งที่เปิดเดือนใหม่ / มีบิลค้าง */}
+        {billSummary.unpaidCount > 0 && (
+          <div className="alert alert-warning d-flex justify-content-between align-items-center" role="alert">
+            <div>
+              <strong>🔔 เดือน {month} มีบิลค้าง {billSummary.unpaidCount} รายการ</strong>
+              <span className="ms-2">ยอดค้าง ฿ {fmt(billSummary.unpaidAmount)}</span>
+              {overdueBills.length > 0 && <span className="badge bg-danger ms-2">เกินกำหนด {overdueBills.length}</span>}
+              {dueSoonBills.length > 0 && <span className="badge bg-warning text-dark ms-2">ใกล้ครบกำหนด {dueSoonBills.length}</span>}
+            </div>
+            <span className="small">จ่ายแล้ว {billSummary.paidCount}/{bills.length}</span>
+          </div>
+        )}
+        {bills.length === 0 && (
+          <div className="alert alert-info d-flex justify-content-between align-items-center" role="alert">
+            <div>📋 เดือน {month} ยังไม่มีบิล ลองคัดลอกจากเดือน {prevMonthStr(month)} มาได้เลย</div>
+            <button onClick={handleCopyBills} className="btn btn-sm btn-primary">คัดลอกบิลเดือนก่อน</button>
+          </div>
+        )}
+
+        {/* Monthly bills card */}
+        <div className="card shadow-sm border-0 mb-4">
+          <div className="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h6 className="mb-0 fw-semibold">🧾 บิลต้องจ่ายเดือน {month} ({billSummary.paidCount}/{bills.length} จ่ายแล้ว)</h6>
+            <div className="d-flex gap-2 align-items-center">
+              <span className="small text-muted">ค้าง ฿ {fmt(billSummary.unpaidAmount)}</span>
+              <button onClick={handleCopyBills} className="btn btn-outline-primary btn-sm">คัดลอกเดือนก่อน</button>
+            </div>
+          </div>
+          <div className="card-body">
+            <form onSubmit={handleAddBill} className="row g-2 mb-3">
+              <div className="col-md-3">
+                <input type="text" value={billTitle} onChange={(e)=>setBillTitle(e.target.value)} placeholder="ชื่อบิล เช่น ค่าเช่า, ค่าไฟ" className="form-control" required />
+              </div>
+              <div className="col-md-2">
+                <input type="number" step="0.01" value={billAmount} onChange={(e)=>setBillAmount(e.target.value)} placeholder="ยอดเงิน" className="form-control" required />
+              </div>
+              <div className="col-md-2">
+                <div className="input-group">
+                  <span className="input-group-text">ภายในวันที่</span>
+                  <input type="number" min={1} max={31} value={billDueDay} onChange={(e)=>setBillDueDay(e.target.value)} className="form-control" required />
+                </div>
+              </div>
+              <div className="col-md-3">
+                <input type="text" value={billNote} onChange={(e)=>setBillNote(e.target.value)} placeholder="หมายเหตุ (ไม่บังคับ)" className="form-control" />
+              </div>
+              <div className="col-md-2">
+                <button type="submit" disabled={billLoading} className="btn btn-primary w-100">{billLoading ? "..." : "＋ เพิ่มบิล"}</button>
+              </div>
+            </form>
+            {bills.length === 0 ? (
+              <p className="text-muted small text-center py-3 mb-0">ยังไม่มีบิลเดือนนี้ — เพิ่มด้านบนได้เลย</p>
+            ) : (
+              <div className="list-group list-group-flush">
+                {bills.map((b) => {
+                  const overdue = !b.isPaid && (!isCurrentMonth || b.dueDay < todayDay);
+                  const dueSoon = !b.isPaid && isCurrentMonth && b.dueDay >= todayDay && b.dueDay - todayDay <= 3;
+                  return (
+                    <div key={b.id} className="list-group-item d-flex align-items-center gap-3">
+                      <div className={`rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 fw-bold ${b.isPaid ? "bg-success text-white" : overdue ? "bg-danger text-white" : "bg-warning text-dark"}`} style={{ width: 44, height: 44 }}>
+                        {b.isPaid ? "✓" : b.dueDay}
+                      </div>
+                      <div className="flex-grow-1">
+                        <div className="fw-medium small">{b.title} <span className="text-muted fw-normal">• ครบกำหนดวันที่ {b.dueDay} • ฿ {fmt(b.amount)}</span></div>
+                        <div className="small text-muted">{b.note || "-"}</div>
+                        <div className="mt-1">
+                          {b.isPaid ? (
+                            <span className="badge bg-success">จ่ายแล้ว {b.paidAt ? `• ${new Date(b.paidAt).toLocaleDateString("th-TH")}` : ""}</span>
+                          ) : overdue ? (
+                            <span className="badge bg-danger">เกินกำหนด</span>
+                          ) : dueSoon ? (
+                            <span className="badge bg-warning text-dark">ใกล้ครบกำหนด</span>
+                          ) : (
+                            <span className="badge bg-secondary">ยังไม่จ่าย</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="btn-group btn-group-sm">
+                        {!b.isPaid ? (
+                          <button onClick={() => handlePayBill(b.id)} className="btn btn-success btn-sm">จ่ายแล้ว</button>
+                        ) : (
+                          <button onClick={() => handleUnpayBill(b.id)} className="btn btn-outline-secondary btn-sm">ยกเลิกจ่าย</button>
+                        )}
+                        <button onClick={() => handleDeleteBill(b.id)} className="btn btn-outline-danger btn-sm">ลบ</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 

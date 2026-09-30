@@ -23,7 +23,25 @@ model User {
   password     String?
   transactions Transaction[]
   categories   Category[]
+  bills        Bill[]
   createdAt    DateTime      @default(now())
+}
+
+model Bill {
+  id        String    @id @default(cuid())
+  title     String
+  amount    Float
+  month     String
+  dueDay    Int       @default(1)
+  isPaid    Boolean   @default(false)
+  paidAt    DateTime?
+  note      String?
+  userId    String?
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([userId, month])
 }
 
 model Category {
